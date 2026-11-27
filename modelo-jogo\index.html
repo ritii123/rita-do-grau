@@ -1,48 +1,114 @@
-<!doctype html>
-<html lang="pt-BR" data-theme="light">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
-    <title>Modelo de Jogo — Jogos VR</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <div class="app">
-      <header class="top">
-        <div>
-          <span class="kicker">Modelo</span>
-          <h1 id="title">Clique no Alvo</h1>
-          <p class="subtitle">Troque este jogo pelo seu. O contrato já está pronto.</p>
-        </div>
-        <button id="restart" class="btn" type="button">Reiniciar</button>
-      </header>
-
-      <main>
-        <div class="hud">
-          <span class="pill">Alvos: <strong id="score">0</strong>/<span id="total">10</span></span>
-          <span class="pill">Tempo: <strong id="timer">0,0s</strong></span>
-        </div>
-
-        <div id="board" class="board" aria-label="Área do jogo">
-          <p id="start-hint" class="start-hint">Clique no alvo para começar</p>
-        </div>
-      </main>
-
-      <footer class="bottom">
-        <p>Este é o arquivo <code>game.js</code>. Leia os comentários e adapte.</p>
-      </footer>
-    </div>
-
-    <div id="result" class="overlay" hidden>
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="result-title">
-        <div class="modal-icon" aria-hidden="true">🎯</div>
-        <h2 id="result-title">Muito bem!</h2>
-        <p id="result-text">Você concluiu o jogo.</p>
-        <button id="play-again" class="btn btn-primary full" type="button">Jogar de novo</button>
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="claro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ritadivaprota - Laboratório de Frações</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container-principal" id="app">
+    <!-- Cabeçalho com título, tema e placar -->
+    <header class="cabecalho">
+      <div class="titulo-area">
+        <h1>ritadivaprota</h1>
+        <span class="subtitulo">Laboratório de Frações • 6º Ano</span>
       </div>
-    </div>
+      <div class="controles-topo">
+        <button type="button" id="btn-tema" class="btn-secundario" aria-label="Alternar tema claro ou escuro">
+          🌓 Tema
+        </button>
+      </div>
+    </header>
 
-    <script src="game.js"></script>
-  </body>
+    <!-- Tela Inicial -->
+    <section id="tela-inicio" class="tela ativa">
+      <div class="cartao-destaque">
+        <h2>Missão no Laboratório</h2>
+        <p>
+          Prepare as fórmulas químicas preenchendo a fração exata em cada tubo de ensaio.
+          Clique nos pedaços para encher e depois confirme sua mistura!
+        </p>
+        <ul class="lista-regras">
+          <li><strong>10 rodadas</strong> com dificuldade crescente</li>
+          <li><strong>10 pontos</strong> por cada fórmula correta</li>
+          <li>Dica: O número de cima indica quantos pedaços encher</li>
+        </ul>
+        <button type="button" id="btn-comecar" class="btn-primario">
+          Começar Experimento
+        </button>
+      </div>
+    </section>
+
+    <!-- Tela do Jogo -->
+    <section id="tela-jogo" class="tela" hidden>
+      <div class="barra-status">
+        <span id="info-rodada" class="etiqueta-status">Rodada 1 de 10</span>
+        <span id="info-pontos" class="etiqueta-status">Pontos: 0</span>
+      </div>
+
+      <div class="area-desafio">
+        <p class="instrucao-rodada">Encha o tubo com a fração:</p>
+        
+        <!-- Exibição visual da fração (Numerador / Denominador) -->
+        <div class="fracao-alvo" aria-live="polite">
+          <span id="valor-numerador" class="numerador">1</span>
+          <span class="linha-fracao"></span>
+          <span id="valor-denominador" class="denominador">2</span>
+        </div>
+
+        <p id="dica-visual" class="texto-apoio">
+          Clique nas partes do tubo abaixo para preencher.
+        </p>
+
+        <!-- Tubo de ensaio dividido em partes clicáveis -->
+        <div class="bancada-laboratorio">
+          <div class="tampa-tubo"></div>
+          <div id="tubo-fracao" class="tubo-container" role="group" aria-label="Tubo dividido em partes">
+            <!-- Os pedaços da fração são criados pelo JavaScript -->
+          </div>
+        </div>
+
+        <p id="contador-selecao" class="contador-partes">
+          Selecionados: 0 de 2 pedaços
+        </p>
+
+        <!-- Área de resposta imediata (Feedback) -->
+        <div id="caixa-feedback" class="feedback" role="status" aria-live="assertive" hidden>
+          <p id="texto-feedback"></p>
+        </div>
+
+        <!-- Botões de ação -->
+        <div class="grupo-botoes">
+          <button type="button" id="btn-limpar" class="btn-secundario">
+            Esvaziar Tubo
+          </button>
+          <button type="button" id="btn-confirmar" class="btn-primario">
+            Confirmar Mistura
+          </button>
+          <button type="button" id="btn-proximo" class="btn-primario" hidden>
+            Próxima Fórmula ➔
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tela Final -->
+    <section id="tela-fim" class="tela" hidden>
+      <div class="cartao-destaque">
+        <h2>Experimento Concluído!</h2>
+        <p id="mensagem-final" class="destaque-resultado"></p>
+        <div class="resumo-final">
+          <p>Pontuação final: <strong id="pontos-finais">0</strong> de <strong id="pontos-maximos">100</strong></p>
+          <p>Acertos: <strong id="total-acertos">0</strong> de 10 fórmulas</p>
+        </div>
+        <button type="button" id="btn-reiniciar" class="btn-primario">
+          Jogar Novamente
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <script src="game.js"></script>
+</body>
 </html>

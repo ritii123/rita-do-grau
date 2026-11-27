@@ -1,217 +1,300 @@
-/*
- * MODELO DE JOGO — Jogos VR
- * -------------------------
- * Este arquivo é seu. Troque a lógica, o placar e as regras.
- * O que NÃO deve mudar é o contrato com o portal, explicado abaixo.
- */
-(function () {
-  "use strict";
+// =========================================================
+// JOGO: ritadivaprota - Laboratório de Frações (6º Ano)
+// =========================================================
 
-  // 1. Configuração: mude à vontade.
-  var CONFIG = {
-    rounds: 10,
-    title: "Clique no Alvo",
-  };
+// Lista das 10 rodadas com dificuldade crescente
+// totalPartes = denominador (em quantos pedaços o tubo é dividido)
+// partesAlvo = numerador (quantos pedaços o jogador precisa preencher)
+const desafios = [
+  { numerador: 1, denominador: 2, partesAlvo: 1, totalPartes: 2, dica: "Metade do tubo." },
+  { numerador: 1, denominador: 3, partesAlvo: 1, totalPartes: 3, dica: "Um pedaço de três partes iguais." },
+  { numerador: 3, denominador: 4, partesAlvo: 3, totalPartes: 4, dica: "Três pedaços de quatro partes iguais." },
+  { numerador: 2, denominador: 5, partesAlvo: 2, totalPartes: 5, dica: "Dois pedaços de cinco partes iguais." },
+  { numerador: 5, denominador: 6, partesAlvo: 5, totalPartes: 6, dica: "Cinco pedaços de seis partes iguais." },
+  { numerador: 4, denominador: 8, partesAlvo: 4, totalPartes: 8, dica: "Quatro oitavos equivale à metade do tubo!" },
+  { numerador: 3, denominador: 7, partesAlvo: 3, totalPartes: 7, dica: "Três pedaços de sete partes iguais." },
+  { numerador: 7, denominador: 10, partesAlvo: 7, totalPartes: 10, dica: "Sete décimos do tubo." },
+  // Rodadas finais com frações equivalentes para desafiar o raciocínio
+  { numerador: 1, denominador: 2, partesAlvo: 3, totalPartes: 6, dica: "Atenção! O tubo tem 6 partes. Quanto vale 1/2 dele?" },
+  { numerador: 2, denominador: 3, partesAlvo: 4, totalPartes: 6, dica: "Desafio final: o tubo tem 6 partes. Quanto vale 2/3 dele?" }
+];
 
-  var state = {
-    score: 0,
-    round: 0,
-    startedAt: null,
-    finished: false,
-    timerId: null,
-  };
+// Variáveis de controle da partida
+let indiceRodadaAtual = 0;
+let pontos = 0;
+let totalAcertos = 0;
+let partesSelecionadas = 0;
+let rodadaRespondida = false;
+let tempoInicio = 0;
 
-  var els = {
-    board: document.getElementById("board"),
-    score: document.getElementById("score"),
-    total: document.getElementById("total"),
-    timer: document.getElementById("timer"),
-    hint: document.getElementById("start-hint"),
-    restart: document.getElementById("restart"),
-    result: document.getElementById("result"),
-    resultText: document.getElementById("result-text"),
-    playAgain: document.getElementById("play-again"),
-  };
+const pontosPorAcerto = 10;
+const pontuacaoMaxima = desafios.length * pontosPorAcerto;
 
-  // 2. Avisa o portal que o jogo carregou.
+// Elementos da tela
+const telaInicio = document.getElementById("tela-inicio");
+const telaJogo = document.getElementById("tela-jogo");
+const telaFim = document.getElementById("tela-fim");
+
+const infoRodada = document.getElementById("info-rodada");
+const infoPontos = document.getElementById("info-pontos");
+const valorNumerador = document.getElementById("valor-numerador");
+const valorDenominador = document.getElementById("valor-denominador");
+const dicaVisual = document.getElementById("dica-visual");
+const tuboFracao = document.getElementById("tubo-fracao");
+const contadorSelecao = document.getElementById("contador-selecao");
+
+const caixaFeedback = document.getElementById("caixa-feedback");
+const textoFeedback = document.getElementById("texto-feedback");
+
+const btnTema = document.getElementById("btn-tema");
+const btnComecar = document.getElementById("btn-comecar");
+const btnLimpar = document.getElementById("btn-limpar");
+const btnConfirmar = document.getElementById("btn-confirmar");
+const btnProximo = document.getElementById("btn-proximo");
+const btnReiniciar = document.getElementById("btn-reiniciar");
+
+// =========================================================
+// INTEGRAÇÃO COM O PORTAL (Contrato vrgame)
+// =========================================================
+
+function notificarAlturaPortal() {
+  const alturaDocumento = document.documentElement.scrollHeight;
+  window.parent.postMessage({
+    type: "vrgame:resize",
+    height: alturaDocumento
+  }, "*");
+}
+
+function aplicarTema(tema) {
+  const temaEscolhido = tema === "escuro" ? "escuro" : "claro";
+  document.documentElement.setAttribute("data-tema", temaEscolhido);
+  notificarAlturaPortal();
+}
+
+// Escuta mensagens enviadas pelo portal
+window.addEventListener("message", function (evento) {
+  const dados = evento.data;
+  if (!dados || typeof dados !== "object") return;
+
+  if (dados.type === "vrgame:theme") {
+    aplicarTema(dados.theme || dados.tema);
+  }
+
+  if (dados.type === "vrgame:fullscreen") {
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(function () {});
+    } else if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(function () {});
+    }
+    notificarAlturaPortal();
+  }
+});
+
+// Avisa o portal quando o tamanho da tela mudar
+window.addEventListener("resize", notificarAlturaPortal);
+
+// =========================================================
+// LÓGICA DO JOGO
+// =========================================================
+
+function mostrarTela(telaParaExibir) {
+  telaInicio.hidden = true;
+  telaJogo.hidden = true;
+  telaFim.hidden = true;
+
+  telaParaExibir.hidden = false;
+  notificarAlturaPortal();
+}
+
+function iniciarJogo() {
+  indiceRodadaAtual = 0;
+  pontos = 0;
+  totalAcertos = 0;
+  tempoInicio = Date.now();
+
+  mostrarTela(telaJogo);
+  carregarRodada();
+}
+
+function carregarRodada() {
+  const desafio = desafios[indiceRodadaAtual];
+  partesSelecionadas = 0;
+  rodadaRespondida = false;
+
+  // Atualiza textos do topo e da fração
+  infoRodada.textContent = "Rodada " + (indiceRodadaAtual + 1) + " de " + desafios.length;
+  infoPontos.textContent = "Pontos: " + pontos;
+  valorNumerador.textContent = desafio.numerador;
+  valorDenominador.textContent = desafio.denominador;
+  dicaVisual.textContent = desafio.dica;
+
+  // Esconde feedback e ajusta botões
+  caixaFeedback.hidden = true;
+  caixaFeedback.className = "feedback";
+  btnLimpar.hidden = false;
+  btnConfirmar.hidden = false;
+  btnProximo.hidden = true;
+
+  // Monta os pedaços clicáveis do tubo
+  tuboFracao.innerHTML = "";
+  for (let i = 0; i < desafio.totalPartes; i++) {
+    const pedaco = document.createElement("button");
+    pedaco.type = "button";
+    pedaco.className = "pedaco-tubo";
+    pedaco.setAttribute("aria-pressed", "false");
+    pedaco.setAttribute("aria-label", "Pedaço " + (i + 1) + " de " + desafio.totalPartes);
+    pedaco.textContent = "1/" + desafio.totalPartes;
+
+    pedaco.addEventListener("click", function () {
+      alternarPedaco(pedaco);
+    });
+
+    tuboFracao.appendChild(pedaco);
+  }
+
+  atualizarContador();
+  notificarAlturaPortal();
+}
+
+function alternarPedaco(pedaco) {
+  if (rodadaRespondida) return;
+
+  const jaPreenchido = pedaco.classList.contains("preenchido");
+
+  if (jaPreenchido) {
+    pedaco.classList.remove("preenchido");
+    pedaco.setAttribute("aria-pressed", "false");
+    partesSelecionadas--;
+  } else {
+    pedaco.classList.add("preenchido");
+    pedaco.setAttribute("aria-pressed", "true");
+    partesSelecionadas++;
+  }
+
+  atualizarContador();
+}
+
+function limparTubo() {
+  if (rodadaRespondida) return;
+
+  const todosPedacos = tuboFracao.querySelectorAll(".pedaco-tubo");
+  todosPedacos.forEach(function (pedaco) {
+    pedaco.classList.remove("preenchido");
+    pedaco.setAttribute("aria-pressed", "false");
+  });
+
+  partesSelecionadas = 0;
+  atualizarContador();
+}
+
+function atualizarContador() {
+  const desafio = desafios[indiceRodadaAtual];
+  contadorSelecao.textContent = "Selecionados: " + partesSelecionadas + " de " + desafio.totalPartes + " pedaços";
+}
+
+function verificarResposta() {
+  if (rodadaRespondida) return;
+  rodadaRespondida = true;
+
+  const desafio = desafios[indiceRodadaAtual];
+
+  // Trava os pedaços do tubo após confirmar
+  const todosPedacos = tuboFracao.querySelectorAll(".pedaco-tubo");
+  todosPedacos.forEach(function (pedaco) {
+    pedaco.disabled = true;
+  });
+
+  caixaFeedback.hidden = false;
+
+  if (partesSelecionadas === desafio.partesAlvo) {
+    pontos += pontosPorAcerto;
+    totalAcertos++;
+    infoPontos.textContent = "Pontos: " + pontos;
+
+    caixaFeedback.className = "feedback acerto";
+    textoFeedback.textContent =
+      "Acertou! Você preencheu " + partesSelecionadas + " de " + desafio.totalPartes +
+      " partes, formando exatamente " + desafio.numerador + "/" + desafio.denominador + ".";
+  } else {
+    caixaFeedback.className = "feedback erro";
+    textoFeedback.textContent =
+      "Você errou! Você preencheu " + partesSelecionadas + " de " + desafio.totalPartes +
+      " partes, mas para formar " + desafio.numerador + "/" + desafio.denominador +
+      " era preciso preencher " + desafio.partesAlvo + " parte(s).";
+  }
+
+  // Troca os botões de ação
+  btnLimpar.hidden = true;
+  btnConfirmar.hidden = true;
+  btnProximo.hidden = false;
+
+  if (indiceRodadaAtual === desafios.length - 1) {
+    btnProximo.textContent = "Ver Resultado Final ➔";
+  } else {
+    btnProximo.textContent = "Próxima Fórmula ➔";
+  }
+
+  notificarAlturaPortal();
+}
+
+function avancarRodada() {
+  indiceRodadaAtual++;
+
+  if (indiceRodadaAtual < desafios.length) {
+    carregarRodada();
+  } else {
+    finalizarJogo();
+  }
+}
+
+function finalizarJogo() {
+  const tempoTotalMs = Date.now() - tempoInicio;
+
+  document.getElementById("pontos-finais").textContent = pontos;
+  document.getElementById("pontos-maximos").textContent = pontuacaoMaxima;
+  document.getElementById("total-acertos").textContent = totalAcertos;
+
+  const mensagemFinal = document.getElementById("mensagem-final");
+  if (totalAcertos >= 8) {
+    mensagemFinal.textContent = "Excelente trabalho! Você dominou as frações do laboratório!";
+  } else if (totalAcertos >= 5) {
+    mensagemFinal.textContent = "Bom resultado! Continue praticando para acertar todas as fórmulas.";
+  } else {
+    mensagemFinal.textContent = "Valeu a tentativa! Jogue de novo para treinar mais um pouco.";
+  }
+
+  mostrarTela(telaFim);
+
+  // Envia resultado final para o portal
+  window.parent.postMessage({
+    type: "vrgame:finish",
+    score: pontos,
+    maxScore: pontuacaoMaxima,
+    timeMs: tempoTotalMs,
+    detail: {
+      jogo: "ritadivaprota"
+    }
+  }, "*");
+}
+
+// =========================================================
+// EVENTOS DOS BOTÕES E INICIALIZAÇÃO
+// =========================================================
+
+btnTema.addEventListener("click", function () {
+  const temaAtual = document.documentElement.getAttribute("data-tema");
+  const novoTema = temaAtual === "escuro" ? "claro" : "escuro";
+  aplicarTema(novoTema);
+});
+
+btnComecar.addEventListener("click", iniciarJogo);
+btnLimpar.addEventListener("click", limparTubo);
+btnConfirmar.addEventListener("click", verificarResposta);
+btnProximo.addEventListener("click", avancarRodada);
+btnReiniciar.addEventListener("click", iniciarJogo);
+
+// Avisa o portal assim que o jogo terminar de carregar
+window.addEventListener("load", function () {
   window.parent.postMessage({ type: "vrgame:ready" }, "*");
-
-  function formatTime(ms) {
-    return (ms / 1000).toFixed(1).replace(".", ",") + "s";
-  }
-
-  function startTimer() {
-    if (state.startedAt) return;
-    state.startedAt = Date.now();
-    state.timerId = window.setInterval(function () {
-      els.timer.textContent = formatTime(Date.now() - state.startedAt);
-    }, 100);
-  }
-
-  function stopTimer() {
-    if (state.timerId) {
-      window.clearInterval(state.timerId);
-      state.timerId = null;
-    }
-  }
-
-  function spawnTarget() {
-    var old = els.board.querySelector(".target");
-    if (old) old.remove();
-
-    var size = 64;
-    var maxX = Math.max(0, els.board.clientWidth - size - 8);
-    var maxY = Math.max(0, els.board.clientHeight - size - 8);
-
-    var button = document.createElement("button");
-    button.type = "button";
-    button.className = "target";
-    button.setAttribute("aria-label", "Alvo " + (state.round + 1));
-    button.style.left = 4 + Math.random() * maxX + "px";
-    button.style.top = 4 + Math.random() * maxY + "px";
-    button.addEventListener("click", hitTarget);
-    els.board.appendChild(button);
-    button.focus();
-  }
-
-  function hitTarget() {
-    if (state.finished) return;
-    startTimer();
-
-    state.score += 1;
-    state.round += 1;
-    els.score.textContent = String(state.score);
-
-    if (state.round >= CONFIG.rounds) {
-      finish();
-      return;
-    }
-
-    spawnTarget();
-  }
-
-  function finish() {
-    state.finished = true;
-    stopTimer();
-    var timeMs = state.startedAt ? Date.now() - state.startedAt : 0;
-
-    els.result.hidden = false;
-    els.resultText.textContent =
-      "Você acertou " +
-      state.score +
-      " de " +
-      CONFIG.rounds +
-      " alvos em " +
-      formatTime(timeMs) +
-      ".";
-
-    // 3. Avisa o portal que a partida terminou e envia o resultado.
-    window.parent.postMessage(
-      {
-        type: "vrgame:finish",
-        score: state.score,
-        maxScore: CONFIG.rounds,
-        timeMs: timeMs,
-        detail: { mode: "template" },
-      },
-      "*"
-    );
-  }
-
-  function reset() {
-    stopTimer();
-    state.score = 0;
-    state.round = 0;
-    state.startedAt = null;
-    state.finished = false;
-    els.score.textContent = "0";
-    els.timer.textContent = "0,0s";
-    els.result.hidden = true;
-    els.hint.hidden = false;
-    els.total.textContent = String(CONFIG.rounds);
-
-    var old = els.board.querySelector(".target");
-    if (old) old.remove();
-  }
-
-  // 4. O portal avisa se o tema é claro ou escuro.
-  function applyTheme(theme) {
-    if (theme === "dark" || theme === "light") {
-      document.documentElement.dataset.theme = theme;
-    }
-  }
-
-  // Na nova aba não existe portal: ?theme= > localStorage > preferência do sistema.
-  function preferredTheme() {
-    try {
-      var fromQuery = new URLSearchParams(window.location.search).get("theme");
-      if (fromQuery === "dark" || fromQuery === "light") return fromQuery;
-    } catch (error) {
-      // URLSearchParams indisponível: segue para a próxima opção
-    }
-
-    try {
-      var saved = window.localStorage.getItem("theme");
-      if (saved === "dark" || saved === "light") return saved;
-    } catch (error) {
-      // armazenamento bloqueado: usa a preferência do sistema
-    }
-
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  }
-
-  var lastHeight = 0;
-
-  function reportHeight() {
-    var height = Math.ceil(document.body.getBoundingClientRect().height);
-    if (Math.abs(height - lastHeight) < 4) return;
-    lastHeight = height;
-    window.parent.postMessage({ type: "vrgame:resize", height: height }, "*");
-  }
-
-  window.addEventListener("message", function (event) {
-    if (!event.data) return;
-
-    if (event.data.type === "vrgame:theme") {
-      applyTheme(event.data.theme);
-    }
-
-    if (event.data.type === "vrgame:fullscreen") {
-      document.documentElement.classList.toggle(
-        "is-fullscreen",
-        Boolean(event.data.fullscreen)
-      );
-    }
-  });
-
-  els.board.addEventListener("pointerdown", function () {
-    if (state.round === 0 && !state.finished) {
-      els.hint.hidden = true;
-      spawnTarget();
-    }
-  });
-
-  els.restart.addEventListener("click", reset);
-  els.playAgain.addEventListener("click", reset);
-
-  applyTheme(preferredTheme());
-
-  if (window.self === window.top) {
-    document.documentElement.classList.add("is-standalone");
-  }
-
-  window.addEventListener("storage", function (event) {
-    if (event.key === "theme") applyTheme(event.newValue);
-  });
-
-  window.addEventListener("resize", reportHeight);
-  if ("ResizeObserver" in window) {
-    new ResizeObserver(reportHeight).observe(document.body);
-  }
-  window.requestAnimationFrame(reportHeight);
-
-  els.total.textContent = String(CONFIG.rounds);
-  document.getElementById("title").textContent = CONFIG.title;
-})();
+  notificarAlturaPortal();
+});

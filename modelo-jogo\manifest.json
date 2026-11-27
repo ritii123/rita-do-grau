@@ -1,16 +1,16 @@
 {
-  "slug": "meu-jogo",
-  "title": "Nome do meu jogo",
-  "author": "Seu nome",
-  "authorClass": "Sua turma",
+  "slug": "ritadivaprota",
+  "title": "ritadivaprota",
+  "author": "Ritcharla",
+  "authorClass": "8A",
   "discipline": "Matemática",
-  "grades": ["6º", "7º"],
-  "tags": ["palavra-chave", "outra-palavra"],
-  "description": "Uma frase curta que explica o que o jogo ensina.",
-  "instructions": "Como jogar, em uma ou duas frases.",
-  "duration": 5,
+  "grades": ["6º ano"],
+  "tags": ["frações", "laboratório", "matemática", "6º ano", "raciocínio"],
+  "description": "Prepare fórmulas químicas preenchendo a fração exata em tubos de ensaio divididos em partes iguais.",
+  "instructions": "Leia a fração pedida na tela, clique nos pedaços do tubo para preencher a quantidade correta e aperte Confirmar Mistura.",
+  "duration": "3 min",
   "version": "1.0.0",
   "entry": "index.html",
   "cover": "cover.svg",
-  "createdAt": "2026-11-02"
+  "createdAt": "2026-11-27"
 }
